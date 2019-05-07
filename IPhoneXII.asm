@@ -1,8 +1,8 @@
 /*
- * Capteurthermo.asm
+ * IPhoneXII.asm
  *
  *  Created: 15.05.2018 15:37:41
- *   Author: LoÔc
+ *   Author: Lo√Øc
  */ 
  .include "def.asm"
 
@@ -52,7 +52,7 @@ init:
 			ldi a3,0b00000001	; Tsup MSByte : Tsup (initialement) = 30C
 			ldi b0,0b10100000	; Tinf LSByte
 			ldi b1,0b00000000	; Tinf MSByte : Tinf (initialement) = 10C
-			ldi r17,0b00000001	; State register : bit0 = mode, bit1 = Ètat des stores ; initialement, mode auto. (bit0 = 1) & stores ouverts (bit1 = 0)
+			ldi r17,0b00000001	; State register : bit0 = mode, bit1 = √©tat des stores ; initialement, mode auto. (bit0 = 1) & stores ouverts (bit1 = 0)
 		
 Trefset:
 			PRINTF LCD
@@ -208,12 +208,12 @@ pre_servo:
 baisser:	cpi b1,high(closep)			; Si pulseh = high(closep), pre_servo doit baisser les stores [closep], sinon pre_servo doit les monter [openp]
 			brne monter
 			bst r17,1					; Store r17(1) dans T
-			brts return					; Si r17(1) = 1, les stores sont dÈj‡ baissÈs : retour ‡ main
+			brts return					; Si r17(1) = 1, les stores sont d√©j√† baiss√©s : retour √† main
 			rcall moveservo
 			sbr r17,0b10
 			rjmp return
 monter :	bst r17,1					; Store r17(1) dans T
-			brtc return					; Si r17(1) = 0, les stores sont dÈj‡ ouverts : retour ‡ main
+			brtc return					; Si r17(1) = 0, les stores sont d√©j√† ouverts : retour √† main
 			rcall moveservo
 			cbr r17,0b10
 return:		rjmp main
