@@ -8,9 +8,9 @@
  .include "macros.asm"
 
 ; === constants definition
- .equ incr = 0b1000
- .equ tmax0 = 0b11000000
- .equ tmax1 = 0b00000011		; tmax = 60C
+ .equ incr = 0b0100
+ .equ tmax0 = 0b10000000
+ .equ tmax1 = 0b00000100		; tmax = 70C
  .equ tmin0 = 0b00100000
  .equ tmin1 = 0b11111110		; tmin = -30C
  .equ openp = 1000			; openp(ulse) = 1000
@@ -31,6 +31,17 @@
 		pop w
 	.endmacro
 
+.macro 	INCTinf ; incrémente @0,@1 tant que < 60 (format 2 bytes signé, point fixe à 4)
+		push w
+		CP2 @1,@0,b1,b0
+		breq PC+5
+		ldi w,incr
+		add @0,w
+		brcc PC+2
+		inc @1
+		pop w
+	.endmacro
+
 .macro 	DECT ; décrémente @0,@1 tant que > -30 (format 2 bytes signé, point fixe à 4)
 		push w
 		ldi w,tmin0
@@ -41,7 +52,19 @@
 		brcc PC+2
 		dec @1
 		pop w
-	.endmacro
+		.endmacro
+
+.macro 	DECTsup ; décrémente @0,@1 tant que > -30 (format 2 bytes signé, point fixe à 4)
+		push w
+		ld w,@2
+		ld r25,@3
+		CP2 @1,@0,r25,w
+		breq PC+4
+		subi @0, incr
+		brcc PC+2
+		dec @1
+		pop w
+		.endmacro
 
 .macro TOGGLEBIT ; in r,b : out r(a=/=b) inchangé, r(b) inversé
 		push w
