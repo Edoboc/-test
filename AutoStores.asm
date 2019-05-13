@@ -46,38 +46,41 @@ reinitiate:
 ; === program start
 init:
 			rcall LCD_clear
-			ldi a0,0b01000000	; Tref LSByte
-			ldi a1,0b00000001	; Tref MSByte : Tref (initialement) = 20C
-			ldi a2,0b10010000	; Tsup LSByte
-			ldi a3,0b00000001	; Tsup MSByte : Tsup (initialement) = 25C
-			ldi b0,0b10100000	; Tinf LSByte
-			ldi b1,0b00000000	; Table MSByte : Table (initialement) = 15C
-			ldi b2,0b10100000	; Tinf LSByte
-			ldi b3,0b00000000	; Tinf MSByte : Table (initialement) = 10C
-			ldi r17,0b00000001	; State register : bit0 = mode, bit1 = état des stores ; initialement, mode auto. (bit0 = 1) & stores ouverts (bit1 = 0)
-		
+			ldi b0,0b01000000	; Tref LSByte
+			ldi b1,0b00000001	; Tref MSByte : Tref (initialement) = 20C
+			ldi a0,0b10010000	; Tsup LSByte
+			ldi a1,0b00000001	; Tsup MSByte : Tsup (initialement) = 25C
+			ldi a2,0b10100000	; Tinf LSByte
+			ldi a3,0b00000000	; Tinf MSByte : Table (initialement) = 15C
+			ldi b2,0b10100000	; Table LSByte
+			ldi b3,0b00000000	; Table MSByte : Table (initialement) = 10C
+				
 Trefset:	
 			rcall LCD_clear
 			WAIT_MS 200
 			PRINTF LCD
 .db "Set Tref", LF, 0
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, a, 4, $42, LF, 0
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
 
 Trefinc:
 			in r16, PIND
 			cpi r16, 0b11101111
-			brne Trefdec
+			_BRNE Trefdec
+			INCT b0,b1,1
 			INCT a0,a1,1
+			INCT a2,a3,1
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, a, 4, $42, LF, 0
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
 			WAIT_MS 200
 Trefdec:
 			cpi r16, 0b11110111
-			brne Trefnext
+			_BRNE Trefnext
+			DECT b0,b1,1
 			DECT a0,a1,1
+			DECT a2,a3,1
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, a, 4, $42, LF, 0
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
 			WAIT_MS 200
 Trefnext:
 			cpi r16, 0b10111111
@@ -94,34 +97,38 @@ Trefnext:
 			rjmp Tableset		
 			rjmp Trefinc
 
-
 Tableset:
 			rcall LCD_home
 			WAIT_MS 200
 			PRINTF LCD
-.db "Set Table", LF, 0
-			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+			PRINTF LCD
+.db "Tinf =",FFRAC2+FSIGN, a+2, 4, $42, LF, 0
 
 
 Tableinc:
 			in r16, PIND
 			cpi r16, 0b11111011
-			brne Tabledec
+			_BRNE Tabledec
 			INCT b2,b3,1
-			INCT a2,a3,0
-			DECT b0,b2,0
+			INCT a0,a1,0
+			DECT a2,a3,0
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, a, 4, $42, LF, 0
+.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+			PRINTF LCD
+.db "Tinf =",FFRAC2+FSIGN, a+2, 4, $42, LF, 0
 			WAIT_MS 200
 Tabledec:
 			cpi r16, 0b11111101
-			brne Tablenext
+			_BRNE Tablenext
 			DECT b2,b3,1
-			DECT a2,a3,0
-			INCT b0,b2,0
+			DECT a0,a1,0
+			INCT a2,a3,0
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, a, 4, $42, LF, 0
+.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+			PRINTF LCD
+.db "Tinf =",FFRAC2+FSIGN, a+2, 4, $42, LF, 0
+
 			WAIT_MS 200
 Tablenext:
 			cpi r16, 0b10111111
@@ -135,7 +142,7 @@ Tablenext:
 			cpi r16, 0b11110111
 			brne PC+3
 			rcall LCD_clear
-			rjmp Tabrefset		
+			rjmp Trefset		
 			rjmp Tableinc
 
 
@@ -228,9 +235,22 @@ main:
 			cpi r16,0b11111110
 			brne PC+2
 			rjmp reinitiate
-			cpi r16,0b10111111
-			brne PC+2
+			cpi r16,0b11101111
+			brne PC+3
+			rcall LCD_clear
 			rjmp Trefset
+			cpi r16,0b11110111
+			brne PC+3
+			rcall LCD_clear
+			rjmp Trefset
+			cpi r16,0b11111011
+			brne PC+3
+			rcall LCD_clear
+			rjmp Tableset
+			cpi r16,0b11111101
+			brne PC+3
+			rcall LCD_clear
+			rjmp Tableset
 			rjmp main
 							
 			/*cpi r16,0b10111111

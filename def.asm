@@ -20,12 +20,13 @@
 
 ; === macros declarations
 .macro 	INCT ; incrémente @0,@1 tant que < 60 (format 2 bytes signé, point fixe à 4)
-		push w
+		PUSH2 c0, c1
+		_LDI c1,@2
 		ldi w,tmax0
-		ldi r25,tmax1
+		_LDI c0,tmax1
 		CP2 @1,@0,r25,w
 		breq PC+5
-		CP @2,1
+		_CPI c1,1
 		breq PC+3
 		ldi w, incr0
 		rjmp PC+2
@@ -33,35 +34,29 @@
 		add @0,w
 		brcc PC+2
 		inc @1
-		pop w
+		pop c0
+		pop c1
 	.endmacro
 
 
-.macro 	INCTinf ; incrémente Tinf tant que < Tref (format 2 bytes signé, point fixe à 4)
-		push w
-		CP2 @1,@0,@3,@2
-		breq PC+5
-		ldi w,incr
-		add @0,w
-		brcc PC+2
-		inc @1
-		pop w
-	.endmacro
+
 
 .macro 	DECT ; décrémente @0,@1 tant que > -30 (format 2 bytes signé, point fixe à 4)
-		push w
+		PUSH2 c0, c1
+		_LDI c1, @2
 		ldi w,tmin0
-		ldi r25,tmin1
+		_LDI c0,tmin1
 		CP2 @1,@0,r25,w
 		breq PC+8
-		CP @2,1
+		_CPI c1,1
 		breq PC+3
 		subi @0, incr0
 		rjmp PC+2
 		subi @0, incr1
 		brcc PC+2
 		dec @1
-		pop w
+		pop c0
+		pop c1
 	.endmacro
 
 	.macro 	DECTsup ; décrémente Tsup tant que > Tref (format 2 bytes signé, point fixe à 4)
