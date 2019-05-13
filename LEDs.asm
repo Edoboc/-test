@@ -3,7 +3,7 @@
  *
  *  Created: 07.05.2019 10:33:52
  *   Author: Loicc
- */ 
+ */
 ; file	ws2812b_4MHz_demo03_S.asm   target ATmega128L-4MHz-STK300
 ; purpose send data to ws2812b using 4 MHz MCU and standard I/O port
 ;         display 
@@ -14,8 +14,10 @@
 ;				LEDs
 ; 20180926 AxS
 
-.include "macros.asm"			; include macro definitions
-.include "definitions.asm"		; include register/constant definitions
+;.include "macros.asm"			; include macro definitions
+;.include "definitions.asm"		; include register/constant definitions
+
+
 
 ; WS2812b4_WR0	; macro ; arg: void; used: void
 ; purpose: write an active-high zero-pulse to PE1
@@ -28,7 +30,7 @@
 		nop
 		;nop
 		;nop
-.endm
+		.endmacro
 
 ; WS2812b4_WR1	; macro ; arg: void; used: void
 ; purpose: write an active-high one-pulse to PE1
@@ -39,55 +41,84 @@
 		cbi PORTE, 1
 		;nop
 		;nop
-.endm
+		.endmacro
 
 .org 0
 
-reset:
-		LDSP	RAMEND			; Load Stack Pointer (SP)
-		rcall	ws2812b4_init		; initialize 
-/*
-main:
+/*reset:
+		LDSP RAMEND
+		rcall ws2812b4_init
+		*/
+;.equ	PAS = 0b00011111
+/*main:
+		clr b0
+		ldi _w, 0b00111111
+		rcall ws2812b4_reset
+		rcall White
+		rcall Red
+		rcall Blue
+		rcall Green
+		rcall end
+		*/
+		
+.macro	OFF		
 		ldi a0,0x00		;zero-intensity, pixel is off
 		ldi a1,0x00
 		ldi a2,0x00
 		rcall ws2812b4_byte3wr
+		.endmacro
 
+.macro	WHITE
+		cpc b2,_w
+		breq PC+7
+		inc b2
+		ldi a0,0x05		;low-intensity pure white
+		ldi a1,0x05
+		ldi a2,0x05
+		rcall ws2812b4_byte3wr
+		rcall White
+		.endmacro
+
+Green:
 		ldi a0,0x0f		;low-intensity pure green
 		ldi a1,0x00
 		ldi a2,0x00
 		rcall ws2812b4_byte3wr
+		rcall Green
+		ret
 
+Red:
 		ldi a0,0x00		;low-intensity pure red
 		ldi a1,0x0f
 		ldi a2,0x00
 		rcall ws2812b4_byte3wr
+		rcall Red
+		ret
 
+Blue:
 		ldi a0,0x00		;low-intensity pure blue
 		ldi a1,0x00
 		ldi a2,0x0f	
 		rcall ws2812b4_byte3wr
+		rcall Blue
+		ret
+		 
 
-		rcall ws2812b4_reset */
-
+/*
 .macro	INIT_COLOR
-		push w
-		push _w
-		ldi w,@0
-		ldi _w,@1
+		rcall ws2812b4_reset
+		cpi w,PAS
 		breq PC+4
-		subi @0, incr
-		brcc PC+2
-		dec @1
-		pop _w
-		pop w
+		inc w
 .endmacro
 
 .macro	COLOR
+		rcall ws2812b4_reset
 		push w
-		push _w
-		ldi w,@0
-		ldi _w,@1
+		push b3
+		ldi w,PASLSB
+		ldi b3,PASMSB
+		CP2	@1,@0,b3,w
 		breq PC+4
 		subi @0, incr
 		brcc PC+2
@@ -95,10 +126,10 @@ main:
 		pop _w
 		pop w
 .endmacro
-		
+		*/
 end:
 		rjmp end
-
+		
 
 ; ws2812b4_init		; arg: void; used: r16 (w)
 ; purpose: initialize AVR to support ws2812b
