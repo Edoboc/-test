@@ -162,6 +162,9 @@ main:
 			
 
 			in r16,PIND
+			cpi r16,0b11111110
+			brne PC+2						; go to Temp_color if any button pressed
+			rjmp reset
 			cpi r16,0b10111111
 			brne PC+2						; go to Temp_color if any button pressed
 			rjmp Trefset					; return to Trefset if PD6 is pressed
@@ -182,6 +185,7 @@ Temp_color:
 		swap d0								
 		POP4 b0,b1,c0,c1					; restore rgisters
 		POP4 a0,a1,a2,a3
+		_SUBI d0, 0
 		brpl PC+57
 		LED_COLOR 0x00,0x00,0x0f
 		WAIT_MS 300
