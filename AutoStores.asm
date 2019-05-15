@@ -35,10 +35,10 @@ reset:
 ADDbit:		
 			push w
 			in w,PIND
-			cpi w,0b10111111
+			cpi w,0b01111111
 			brne PC+3
-			_ADDI c2,1
-			bst c2,0
+			_ADDI d2,1
+			bst d2,0
 			pop w
 			reti
 					
@@ -60,41 +60,6 @@ init:
 			ldi b2,0b01000000	; Table LSByte
 			ldi b3,0b00000001	; Table MSByte : Table (initialement) = 20C
 
-modeF:
-
-	PUSH4 c0,c1,c2,c3
-	CLR4 c0,c1,c2,c3
-	_LDI c0,5
-	_LDI c1,9 
-	mov	c2,c1			; c will contain the result
-	clr	c3			; d will contain the remainder
-	ldi	w,8			; load bit counter
-	ROL2 c3,c2			; shift carry into result c
-	sub	c3,c1			; subtract b from remainder
-	brcc	PC+2	
-	add	c3,c1			; restore if remainder became negative
-
-	rol	c2			; last shift (C into result c)
-	com	c2			; complement result
-	
-	MOV2	c1,c0, b1,b0		; c will contain the result
-	clr	c3			; d will contain the remainder
-	ldi	w,16			; load bit counter
-	ROL3 c3,c1,c0
-	sub	c3,c2			; subtract b from remainder
-	brcc PC+2		
-	add	c3,c2			; restore if remainder became negative
-
-	ROL2	c1,c0			; last shift (carry into result c)
-	COM2	c1,c0			; complement result
-
-	_LDI c2,0b00000000
-	_LDI c3,0b00000010
-
-	ADD2 c1,c0,c3,c2
-	ret
-
-	
 
 Trefset:	
 			rcall LCD_clear
@@ -112,11 +77,14 @@ Trefinc:
 			INCT b0,b1,1
 			INCT a0,a1,1
 			INCT a2,a3,1
-			brtc PC+5
-			rjmp modeF
+			brtc PC+8
+			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
 			WAIT_MS 200
+			pop c0
+			pop c1
+			rjmp PC+3
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
 			WAIT_MS 200
@@ -126,6 +94,14 @@ Trefdec:
 			DECT b0,b1,1
 			DECT a0,a1,1
 			DECT a2,a3,1
+			brtc PC+8
+			MODE b0,b1
+			PRINTF LCD
+.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
+			WAIT_MS 200
+			pop c0
+			pop c1
+			rjmp PC+3
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
 			WAIT_MS 200
