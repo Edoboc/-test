@@ -148,7 +148,7 @@ mul44s: rcall	mul44
 ; === unsigned division c=a/b ===
 div11:	mov	c0,a0			; c will contain the result
 	clr	d0			; d will contain the remainder
-	ldi	w,12			; load bit counter
+	ldi	w,12		; load bit counter
 _d11:	ROL2	d0,c0			; shift carry into result c
 	sub	d0,b0			; subtract b from remainder
 	brcc	PC+2	

@@ -13,6 +13,8 @@
 		jmp ADDCint
 
 ; === interrupte service routines
+
+
 reset:	
 			LDSP RAMEND
 			OUTI DDRB,0xff
@@ -24,7 +26,7 @@ reset:
 			sei
 			rjmp init
 
- ADDCint:
+ADDCint:
 			push w
 			in w,PIND
 			cpi w,0b11111110
@@ -32,16 +34,6 @@ reset:
 			pop w
 			reti
 
-ADDbit:		
-			push w
-			in w,PIND
-			cpi w,0b01111111
-			brne PC+3
-			_ADDI d2,1
-			bst d2,0
-			pop w
-			rjmp Modemain
-			reti
 					
 
 .include "lcd.asm"
@@ -78,14 +70,14 @@ Trefinc:
 			INCT b0,b1,1
 			INCT a0,a1,1
 			INCT a2,a3,1
-			brtc ModeD1
+			/*brtc ModeD1
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
 			WAIT_MS 200
 			pop c0
 			pop c1
-			rjmp Trefdec
+			rjmp Trefdec*/
 ModeD1:
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
@@ -96,14 +88,14 @@ Trefdec:
 			DECT b0,b1,1
 			DECT a0,a1,1
 			DECT a2,a3,1
-			brtc ModeD2
+			/*brtc ModeD2
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
 			WAIT_MS 200
 			pop c0
 			pop c1
-			rjmp Trefnext
+			rjmp Trefnext*/
 ModeD2:
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
@@ -140,7 +132,7 @@ Tableinc:
 			INCT b2,b3,1
 			INCT a0,a1,0
 			DECT a2,a3,0
-			brtc ModeD3
+			/*brtc ModeD3
 			MODE b2,b3
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
@@ -148,9 +140,10 @@ Tableinc:
 			pop c0
 			pop c1
 			rjmp Tabledec
-ModeD3:
+ModeD3:*/
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+			WAIT_MS 200
 		
 Tabledec:
 			cpi r16, 0b11111101				; decrement Tref, Tsup and Tinf if PD1 is pressed
@@ -158,19 +151,19 @@ Tabledec:
 			DECT b2,b3,1
 			DECT a0,a1,0
 			INCT a2,a3,0
-			brtc ModeD4
+			/*brtc ModeD4
 			MODE b2,b3
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
 			WAIT_MS 200
 			pop c0
 			pop c1
-			rjmp Tablenext
+			rjmp Tablenext*/
 ModeD4:
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
-			
 			WAIT_MS 200
+
 Tablenext:
 			cpi r16, 0b10111111
 			brne PC+3						; clear LCD and go to main if PD6 is pressed
@@ -186,7 +179,9 @@ Tablenext:
 			rjmp Trefset		
 			rjmp Tableinc					; if any button is pressed, return to Tableinc
 
-main:
+main:	
+			ldi zl, low(sauvegarde)
+			ldi zh, high(sauvegarde)
 			WAIT_MS 200					
 			push a0
 			rcall	lcd_home				; place cursor to home position
@@ -203,21 +198,45 @@ main:
 			pop a0
 
 Modemain:   
+			/*PUSH d0
+			ld d0,z
+			bst d0,0
+			pop d0
+			
 			brtc ModeD5
-			MODE c2,c3
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
+.db "Temp =",FFRAC2+FSIGN, c+2, 4, $42, LF, 0
 			WAIT_MS 200
-			pop c0
-			pop c1
-			rjmp Trefnext
-ModeD5:
-			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c+2, 4, $42, LF, 0
-			WAIT_MS 200
-			
-			
+			rjmp degre*/
 
+ModeD5:
+			PUSH d3
+			ld d3,z
+			rcall LCD_clear
+			PRINTF LCD
+.db "compteur =",FDEC, d+3, 0
+			WAIT_MS 200
+			pop d3
+
+			
+			/*Mode c2,c3
+			PRINTF LCD
+.db "Temp =",FFRAC2+FSIGN, d+2, 4, $42, LF, 0
+			WAIT_MS 200*/
+
+
+degre:		
+			in r16,PIND
+			cpi r16,0b01111111
+			brne nope
+			PUSH d3
+			clr d3
+			ld d3,z
+			inc d3
+			st z,d3
+			pop d3
+			rjmp Modemain
+nope:
 			in r16,PIND
 			cpi r16,0b11111110
 			brne PC+2						; go to Temp_color if any button pressed
@@ -229,6 +248,7 @@ ModeD5:
 			cpi r16, 0b11110111
 			brne PC+3						; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
+			rjmp Trefset
 			cpi r16, 0b11111011
 			brne PC+3						; clear LCD and go to Tableset if PD2 is pressed
 			rcall LCD_clear
@@ -237,6 +257,7 @@ ModeD5:
 			brne PC+3
 			rcall LCD_clear
 			rjmp Tableset
+
 
 Temp_color:	
 		PUSH4 a0,a1,a2,a3					; save registers
@@ -408,3 +429,8 @@ ws2b3_nexta2:
 		brne ws2b3_starta2
 	
 		ret
+
+.dseg
+.org 0x0100
+
+sauvegarde: .byte 1

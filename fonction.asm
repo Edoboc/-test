@@ -29,7 +29,7 @@
 		ldi w,tmax0
 		_LDI c0,tmax1
 		CP2 @1,@0,r25,w
-		breq PC+5
+		breq PC+6
 		_CPI c1,1
 		breq PC+3
 		ldi w, incr0
@@ -49,7 +49,7 @@
 		ldi w,tmin0
 		_LDI c0,tmin1
 		CP2 @1,@0,r25,w
-		breq PC+8
+		breq PC+9
 		_CPI c1,1
 		breq PC+3
 		subi @0, incr0
@@ -97,22 +97,19 @@
 
 .macro MODE
 	
-	PUSH4 c0,c1,c2,c3
-	PUSH4 a0,a1,b0,d0
-	mov c1,@1
-	mov c2,@0
-	ldi a0,0b01010000
-	ldi b0,0b10010000
-	rcall div11
-	mov b0,c0
-	mov a0,c2
-	mov a1,c1
-	rcall div21
-	ldi w, 0b00000000
-	mov c3, w
-	ldi w, 0b00100000
-	mov c2, w
-	ADD2 c1,c0,c2,c3
-	POP4 a0,a1,b0,d0
-	POP2 c2,c3
+		PUSH4 c0,c1,c2,c3
+		PUSH4 a0,a1,b0,d0
+		ldi a0,0x05
+		ldi b0,0x09
+		rcall div11
+		mov a0,@0
+		mov a1,@1
+		mov b0,c0
+		rcall div21
+		_ADDI c0, 0b00000000
+		_ADDI c1, 0b00000010
+		POP4 a0,a1,b0,d0
+		mov d3,c1
+		mov d2,c0
+		POP4 c0,c1,c2,c3
 .endmacro
