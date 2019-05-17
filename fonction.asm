@@ -99,17 +99,19 @@
 	
 		PUSH4 c0,c1,c2,c3
 		PUSH4 a0,a1,b0,d0
+		mov d2,@0
+		mov d3,@1
 		ldi a0,0x05
 		ldi b0,0x09
 		rcall div11
-		mov a0,@0
-		mov a1,@1
+		mov a0,d2
+		mov a1,d3
 		mov b0,c0
 		rcall div21
 		_ADDI c0, 0b00000000
 		_ADDI c1, 0b00000010
 		POP4 a0,a1,b0,d0
-		mov d3,c1
-		mov d2,c0
+		mov b1,c1
+		mov b0,c0
 		POP4 c0,c1,c2,c3
 .endmacro

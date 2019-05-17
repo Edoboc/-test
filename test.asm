@@ -44,8 +44,16 @@ ADDCint:
 ; === program start
 init:
 			rcall LCD_clear
-			ldi b0,0b10010000	; Tref LSByte
-			ldi b1,0b00000001	; Tref MSByte : Tref (initialement) = 25C
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ldi b0,0b00000000
+			st x,b0
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ldi b0,0b10010000
+			ldi b1,0b00000001
+			st z+,b1
+			st z,b0
 			ldi a0,0b00110000	; Tsup LSByte
 			ldi a1,0b00000010	; Tsup MSByte : Tsup (initialement) = 35C
 			ldi a2,0b11110000	; Tinf LSByte
@@ -59,48 +67,131 @@ Trefset:
 			WAIT_MS 200
 			PRINTF LCD
 .db "Set Tref", LF, 0
-			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
-			LED_COLOR 0x05,0x05,0x05		; affiche la couleur blanche
+			
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
 
-Trefinc:
+			sbrc b0,4 
+			rjmp Mode0
+
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
+			PRINTF LCD
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
+			LED_COLOR 0x05,0x05,0x05	; affiche la couleur blanche
+
+			
+			rjmp Trefinc
+
+Mode0:
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
+			MODE b0,b1
+			PRINTF LCD
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
+			LED_COLOR 0x05,0x05,0x05	; affiche la couleur blanche
+
+Trefinc:	
+			
 			in r16, PIND
 			cpi r16, 0b11101111				; increment Tref, Tsup and Tinf if PD4 is pressed
 			_BRNE Trefdec					; go to Trefdec if not
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
 			INCT b0,b1,1
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			st z+,b1
+			st z, b0
 			INCT a0,a1,1
 			INCT a2,a3,1
-			/*brtc ModeD1
+			
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+
+			sbrc b0,4
+			rjmp ModeD1
+
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
+
+			PRINTF LCD
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
+			WAIT_MS 200
+			rjmp Trefdec
+
+
+ModeD1:		
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
 			MODE b0,b1
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
-			pop c0
-			pop c1
-			rjmp Trefdec*/
-ModeD1:
-			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
-			WAIT_MS 200
+			
+
 Trefdec:
 			cpi r16, 0b11110111				; decrement Tref, Tsup and Tinf if PD3 is pressed
 			_BRNE Trefnext					; go to Trefnext if not
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
 			DECT b0,b1,1
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			st z+,b1
+			st z, b0
 			DECT a0,a1,1
 			DECT a2,a3,1
-			/*brtc ModeD2
+
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+
+			sbrc b0,4
+			rjmp ModeD2 
+			
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1, z+
+			ld b0, z
+			PRINTF LCD
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
+			WAIT_MS 200
+			rjmp Trefnext
+
+
+ModeD2:		
+			ldi zl, low(Tref)
+			ldi zh, high(Tref)
+			ld b1,z+
+			ld b0,z
 			MODE b0,b1
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
+.db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
-			pop c0
-			pop c1
-			rjmp Trefnext*/
-ModeD2:
-			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, b, 4, $42, LF, 0
-			WAIT_MS 200
-Trefnext:
+
+Trefnext:	
+			cpi r16,0b11111110
+			brne PC+6
+			sbic PIND,0
+			rjmp PC-1
+			sbis PIND,0
+			rjmp PC-1						; go to Temp_color if any button pressed
+			rjmp reset
 			cpi r16, 0b10111111
 			brne PC+3						; go to main if PD6 is pressed
 			rcall LCD_clear
@@ -113,36 +204,73 @@ Trefnext:
 			brne PC+3
 			rcall LCD_clear
 			rjmp Tableset		
+			cpi r16,0b11011111
+			_BRNE Trefinc
+			sbic PIND,5
+			rjmp PC-1
+			sbis PIND,5
+			rjmp PC-1
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+			ADDI b0, 0b00010000
+			st x,b0
+			rjmp Trefset
 			rjmp Trefinc					; if any button is pressed, return to Trefinc
 
 Tableset:
-			rcall LCD_home
+			rcall LCD_clear
 			WAIT_MS 200
 			PRINTF LCD
 .db "Set Table", LF, 0
+
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+
+			sbrc b0,4 
+			rjmp ModeD6
+			
 			PRINTF LCD
-.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
+			WAIT_MS 200
+			rjmp Tableinc
+
+ModeD6:	
+			MODE b2,b3
+			PRINTF LCD
+.db "Table =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
+			WAIT_MS 200
 			
 
 
-Tableinc:
+Tableinc:	
+
 			in r16, PIND
 			cpi r16, 0b11111011				; increment Table, Tsup and Tinf if PD2 is pressed
 			_BRNE Tabledec					; go to Tabledec if not
 			INCT b2,b3,1
 			INCT a0,a1,0
 			DECT a2,a3,0
-			/*brtc ModeD3
+
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+
+			sbrc b0,4
+			rjmp ModeD7
+
+			PRINTF LCD
+.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
+			WAIT_MS 200
+			rjmp Tabledec
+
+
+ModeD7:		
+
 			MODE b2,b3
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
-			WAIT_MS 200
-			pop c0
-			pop c1
-			rjmp Tabledec
-ModeD3:*/
-			PRINTF LCD
-.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+.db "Table =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
 		
 Tabledec:
@@ -151,20 +279,32 @@ Tabledec:
 			DECT b2,b3,1
 			DECT a0,a1,0
 			INCT a2,a3,0
-			/*brtc ModeD4
+
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+
+			sbrc b0,4
+			rjmp ModeD8
+
+			PRINTF LCD
+.db "Table =",FFRAC2+FSIGN, b+2, 4, $42,"C", LF, 0
+			WAIT_MS 200
+			rjmp Tablenext
+ModeD8:	
 			MODE b2,b3
 			PRINTF LCD
-.db "Tref =",FFRAC2+FSIGN, c, 4, $42, LF, 0
-			WAIT_MS 200
-			pop c0
-			pop c1
-			rjmp Tablenext*/
-ModeD4:
-			PRINTF LCD
-.db "Table =",FFRAC2+FSIGN, b+2, 4, $42, LF, 0
+.db "Table =",FFRAC2+FSIGN, b, 4, $42,"F", LF, 0
 			WAIT_MS 200
 
 Tablenext:
+			cpi r16,0b11111110
+			brne PC+6
+			sbic PIND,0
+			rjmp PC-1
+			sbis PIND,0
+			rjmp PC-1						; go to Temp_color if any button pressed
+			rjmp reset
 			cpi r16, 0b10111111
 			brne PC+3						; clear LCD and go to main if PD6 is pressed
 			rcall LCD_clear
@@ -177,12 +317,23 @@ Tablenext:
 			brne PC+3						; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
 			rjmp Trefset		
+			cpi r16,0b11011111
+			_BRNE Tableinc
+			sbic PIND,5
+			rjmp PC-1
+			sbis PIND,5
+			rjmp PC-1
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+			ADDI b0, 0b00010000
+			st x,b0
+			rjmp Tableset
 			rjmp Tableinc					; if any button is pressed, return to Tableinc
 
+
 main:	
-			ldi zl, low(sauvegarde)
-			ldi zh, high(sauvegarde)
-			WAIT_MS 200					
+								
 			push a0
 			rcall	lcd_home				; place cursor to home position
 			rcall	wire1_reset				; send a reset pulse
@@ -195,51 +346,15 @@ main:
 			mov	c2,a0
 			rcall	wire1_read				; read temperature MSByte
 			mov c3,a0
-			pop a0
+			pop a0  
 
-Modemain:   
-			/*PUSH d0
-			ld d0,z
-			bst d0,0
-			pop d0
-			
-			brtc ModeD5
-			PRINTF LCD
-.db "Temp =",FFRAC2+FSIGN, c+2, 4, $42, LF, 0
-			WAIT_MS 200
-			rjmp degre*/
-
-ModeD5:
-			PUSH d3
-			ld d3,z
-			rcall LCD_clear
-			PRINTF LCD
-.db "compteur =",FDEC, d+3, 0
-			WAIT_MS 200
-			pop d3
-
-			
-			/*Mode c2,c3
-			PRINTF LCD
-.db "Temp =",FFRAC2+FSIGN, d+2, 4, $42, LF, 0
-			WAIT_MS 200*/
-
-
-degre:		
-			in r16,PIND
-			cpi r16,0b01111111
-			brne nope
-			PUSH d3
-			clr d3
-			ld d3,z
-			inc d3
-			st z,d3
-			pop d3
-			rjmp Modemain
-nope:
 			in r16,PIND
 			cpi r16,0b11111110
-			brne PC+2						; go to Temp_color if any button pressed
+			brne PC+6
+			sbic PIND,0
+			rjmp PC-1
+			sbis PIND,0
+			rjmp PC-1						; go to Temp_color if any button pressed
 			rjmp reset
 			cpi r16, 0b11101111
 			brne PC+3						; clear LCD and return to Trefset if PD4 is pressed
@@ -257,6 +372,41 @@ nope:
 			brne PC+3
 			rcall LCD_clear
 			rjmp Tableset
+			cpi r16,0b11011111
+			brne nope
+			sbic PIND,5
+			rjmp PC-1
+			sbis PIND,5
+			rjmp PC-1
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ld b0,x
+			ADDI b0, 0b00010000
+			st x,b0
+
+nope:		
+			rcall LCD_clear
+			ldi xl, low(Sauvegarde)
+			ldi xh, high(Sauvegarde)
+			ldi b1, 0b00000000
+			ld b0,x
+			sbrc b0,4
+			rjmp ModeD5
+			
+			PRINTF LCD
+.db			"Temp =",FFRAC2+FSIGN, c+2, 4, $42, "C",LF, 0
+			
+			WAIT_MS 50
+			
+			rjmp Temp_color
+
+ModeD5:
+		
+			Mode c2,c3
+			PRINTF LCD
+.db "Temp =",FFRAC2+FSIGN, b, 4, $42, "F",LF, 0
+			WAIT_MS 50
+
 
 
 Temp_color:	
@@ -431,6 +581,7 @@ ws2b3_nexta2:
 		ret
 
 .dseg
-.org 0x0100
+.org 0x0101
 
-sauvegarde: .byte 1
+sauvegarde: .byte 2
+Tref: .byte 2
