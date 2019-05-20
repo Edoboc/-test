@@ -8,7 +8,7 @@
  * Capteurthermo.asm
  *
  *  Created: 15.05.2018 15:37:41
- *   Author: Loïc
+ *   Author: LoÃ¯c
  */
 
  .include "fonction.asm"
@@ -23,7 +23,8 @@
 
 
 
-reset:	
+reset:		
+			sei
 			LDSP RAMEND
 			OUTI DDRB,0xff
 			OUTI ADCSR, (1<<ADEN)+(1<<ADIE)+6
@@ -31,7 +32,6 @@ reset:
 			call ws2812b4_reset		 
 			rcall LCD_init
 			rcall wire1_init
-			sei
 			OUTI EIMSK, 0x03
 			rjmp init
 
@@ -47,13 +47,16 @@ ext_int1:
 			cpi r16,0b11111101
 			breq PC+2
 			reti
+			sbic PIND,1
+			rjmp PC-1
+			sbis PIND,1
+			rjmp PC-1
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
 			ld b0, x
 			ADDI b0, 0b00010000
 			st x, b0
-			bst b0,4
-			rcall Trefset
+			rjmp Trefset
 			reti
 
 .include "lcd.asm"
@@ -63,7 +66,9 @@ ext_int1:
 
 
 ; === program start
-init:
+init:		
+			sei
+			OUTI EIMSK, 0x03
 			rcall LCD_clear
 
 			ldi xl, low(Selection)
@@ -74,19 +79,22 @@ init:
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ldi b0, 0b10010000 ; Tref LSByte
-			ldi b1, 0b00000001 ; Tref MSByte, initialisation à 25°C
+			ldi b1, 0b00000001 ; Tref MSByte, initialisation Ã  25Â°C
 			st x+, b1
 			st x, b0
 
 			ldi a0,0b00110000	; Tsup LSByte
-			ldi a1,0b00000010	; Tsup MSByte, initialisation à 35°C
+			ldi a1,0b00000010	; Tsup MSByte, initialisation Ã  35Â°C
 			ldi a2,0b11110000	; Tinf LSByte
-			ldi a3,0b00000000	; Tinf MSByte, initialisation à 15°C
+			ldi a3,0b00000000	; Tinf MSByte, initialisation Ã  15Â°C
 			ldi b2,0b01000000	; Table LSByte
-			ldi b3,0b00000001	; Table MSByte, initialisation à 20°C
+			ldi b3,0b00000001	; Table MSByte, initialisation Ã  20Â°C
 
 
 Trefset:	
+			WAIT_US 200
+			sei
+
 			rcall LCD_clear
 			WAIT_MS 200
 			PRINTF LCD
@@ -97,7 +105,7 @@ Trefset:
 			ld b0, x
 
 			sbrc b0,4 
-			rjmp Mode_F1
+			rjmp Mode_F0
 
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
@@ -110,7 +118,7 @@ Trefset:
 
 			rjmp Trefinc
 
-Mode_F1:
+Mode_F0:
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ld b1, x+
@@ -142,20 +150,21 @@ Trefinc:
 			ld b0, x
 
 			sbrc b0, 4
-			rjmp ModeD1
+			rjmp Mode_F1
 
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ld b1, x+
 			ld b0, x
 
+			
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
 			WAIT_MS 200
 			rjmp Trefdec
 
 
-ModeD1:		
+Mode_F1:		
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ld b1, x+
@@ -187,7 +196,7 @@ Trefdec:
 			ld b0,x
 
 			sbrc b0,4
-			rjmp ModeD2 
+			rjmp Mode_F2 
 			
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
@@ -199,7 +208,7 @@ Trefdec:
 			rjmp Trefnext
 
 
-ModeD2:		
+Mode_F2:		
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ld b1, x+
@@ -227,19 +236,6 @@ Trefnext:
 			Bouton 2
 			rcall LCD_clear
 			rjmp Tableset		
-			
-			/*cpi r16,0b11011111
-			_BRNE Trefinc
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Compteur)
-			ldi xh, high(Compteur)
-			ld b0,x
-			ADDI b0, 0b00010000
-			st x,b0
-			rjmp Trefset*/
 
 			rjmp Trefinc					; if any button is pressed, return to Trefinc
 
@@ -254,15 +250,16 @@ Tableset:
 			ld b0,x
 
 			sbrc b0,4 
-			rjmp ModeD6
+			rjmp Mode_F3
 			
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
 			WAIT_MS 200
 			rjmp Tableinc
 
-ModeD6:	
+Mode_F3:	
 			MODE_F b2,b3
+			
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
@@ -283,7 +280,7 @@ Tableinc:
 			ld b0,x
 
 			sbrc b0,4
-			rjmp ModeD7
+			rjmp Mode_F4
 
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
@@ -291,7 +288,7 @@ Tableinc:
 			rjmp Tabledec
 
 
-ModeD7:		
+Mode_F4:		
 
 			MODE_F b2,b3
 			PRINTF LCD
@@ -311,13 +308,13 @@ Tabledec:
 			ld b0, x
 
 			sbrc b0,4
-			rjmp ModeD8
+			rjmp Mode_F5
 
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42,"C", LF, 0
 			WAIT_MS 200
 			rjmp Tablenext
-ModeD8:	
+Mode_F5:	
 			MODE_F b2,b3
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b, 4, $42,"F", LF, 0
@@ -342,23 +339,10 @@ Tablenext:
 			rcall LCD_clear	
 			rjmp Trefset
 			rjmp Tableinc					; if any button is pressed, return to Tableinc		
-			
-			/*cpi r16,0b11011111
-			_BRNE Tableinc
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Compteur)
-			ldi xh, high(Compteur)
-			ld b0,x
-			ADDI b0, 0b00010000
-			st x,b0
-			rjmp Tableset*/
 
 
 main:	
-								
+			sei					
 			push a0
 			rcall	lcd_home				; place cursor to home position
 			rcall	wire1_reset				; send a reset pulse
@@ -374,6 +358,11 @@ main:
 			pop a0  
 
 			in r16, PIND
+			cpi r16, 0b10111111
+			brne PC+7
+			Bouton 6						; clear LCD and return to Trefset if PD4 is pressed
+			rcall LCD_clear
+			rjmp main
 			cpi r16, 0b11011111
 			brne PC+7
 			Bouton 5						; clear LCD and return to Trefset if PD4 is pressed
@@ -394,26 +383,13 @@ main:
 			Bouton 2
 			rcall LCD_clear
 			rjmp Tableset
-			
-			/*cpi r16,0b11011111
-			brne nope
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Compteur)
-			ldi xh, high(Compteur)
-			ld b0, x
-			ADDI b0, 0b00010000
-			st x, b0*/
-
-nope:		
+					
 			rcall LCD_clear
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
 			ld b0,x
 			sbrc b0,4
-			rjmp ModeD5
+			rjmp Mode_F6
 			
 			PRINTF LCD
 .db			"Temp =",FFRAC2+FSIGN, c+2, 4, $42, "C",LF, 0
@@ -422,7 +398,7 @@ nope:
 			
 			rjmp Temp_color
 
-ModeD5:
+Mode_F6:
 		
 			Mode_F c2,c3
 			PRINTF LCD
