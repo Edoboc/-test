@@ -1,21 +1,32 @@
 /*
+ * test.asm
+ *
+ *  Created: 20.05.2019 17:23:29
+ *   Author: b14ko
+ */ 
+ /*
  * Capteurthermo.asm
  *
  *  Created: 15.05.2018 15:37:41
  *   Author: Loïc
- */ 
- .include "fonction.asm"
+ */
+
+ .include "fonction2.asm"
 
  ; === interrupt table
 .org 0
 		jmp reset
-.org ADCCaddr
-		jmp ADDCint
+.org INT0addr
+		jmp	ext_int0
+.org INT1addr
+		jmp	ext_int1
 
 ; === interrupte service routines
 
 
-reset:	
+
+reset:		
+			sei
 			LDSP RAMEND
 			OUTI DDRB,0xff
 			OUTI ADCSR, (1<<ADEN)+(1<<ADIE)+6
@@ -23,74 +34,92 @@ reset:
 			call ws2812b4_reset		 
 			rcall LCD_init
 			rcall wire1_init
-			sei
+			OUTI EIMSK, 0x03
 			rjmp init
 
-ADDCint:
-			push w
-			in w,PIND
-			cpi w,0b11111110
-			breq reset
-			pop w
+ext_int0:
+			
+			rjmp reset
 			reti
 
-					
+ext_int1:
+			
+			sbic PIND,1
+			rjmp PC-1
+			sbis PIND,1
+			rjmp PC-1
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ld b0, x
+			ADDI b0, 0b00010000
+			st x, b0
+			rjmp Trefset
+			reti
 
 .include "lcd.asm"
 .include "printf.asm"
 .include "wire1.asm"
 .include "math.asm"
 
+
 ; === program start
-init:
+init:		
+			sei
+			OUTI EIMSK, 0x03
 			rcall LCD_clear
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ldi b0,0b00000000
-			st x,b0
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ldi b0,0b10010000
-			ldi b1,0b00000001
-			st z+,b1
-			st z,b0
+
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ldi b0, 0b00000000 ; initialisation compteur
+			st x, b0
+
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ldi b0, 0b10010000 ; Tref LSByte
+			ldi b1, 0b00000001 ; Tref MSByte, initialisation à 25°C
+			st x+, b1
+			st x, b0
+
 			ldi a0,0b00110000	; Tsup LSByte
-			ldi a1,0b00000010	; Tsup MSByte : Tsup (initialement) = 35C
+			ldi a1,0b00000010	; Tsup MSByte, initialisation à 35°C
 			ldi a2,0b11110000	; Tinf LSByte
-			ldi a3,0b00000000	; Tinf MSByte : Tinf (initialement) = 15C
+			ldi a3,0b00000000	; Tinf MSByte, initialisation à 15°C
 			ldi b2,0b01000000	; Table LSByte
-			ldi b3,0b00000001	; Table MSByte : Table (initialement) = 20C
+			ldi b3,0b00000001	; Table MSByte, initialisation à 20°C
 
 
 Trefset:	
+			WAIT_US 200
+			sei
+
 			rcall LCD_clear
 			WAIT_MS 200
 			PRINTF LCD
 .db "Set Tref", LF, 0
 			
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ld b0, x
 
 			sbrc b0,4 
-			rjmp Mode0
+			rjmp Mode_F0
 
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
+
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
 			LED_COLOR 0x05,0x05,0x05	; affiche la couleur blanche
 
-			
 			rjmp Trefinc
 
-Mode0:
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+Mode_F0:
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
@@ -99,123 +128,112 @@ Mode0:
 Trefinc:	
 			
 			in r16, PIND
-			cpi r16, 0b11101111				; increment Tref, Tsup and Tinf if PD4 is pressed
+			cpi r16, 0b11011111				; increment Tref, Tsup and Tinf if PD4 is pressed
 			_BRNE Trefdec					; go to Trefdec if not
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			INCT b0,b1,1
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			st z+,b1
-			st z, b0
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			st x+,b1
+			st x, b0
 			INCT a0,a1,1
 			INCT a2,a3,1
 			
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ld b0, x
 
-			sbrc b0,4
-			rjmp ModeD1
+			sbrc b0, 4
+			rjmp Mode_F1
 
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 
+			
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
 			WAIT_MS 200
 			rjmp Trefdec
 
 
-ModeD1:		
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+Mode_F1:		
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
 			
 
-Trefdec:
-			cpi r16, 0b11110111				; decrement Tref, Tsup and Tinf if PD3 is pressed
+Trefdec:	
+			in r16, PIND
+			cpi r16, 0b11101111				; decrement Tref, Tsup and Tinf if PD3 is pressed
 			_BRNE Trefnext					; go to Trefnext if not
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			DECT b0,b1,1
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			st z+,b1
-			st z, b0
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			st x+,b1
+			st x, b0
 			DECT a0,a1,1
 			DECT a2,a3,1
 
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
 			ld b0,x
 
 			sbrc b0,4
-			rjmp ModeD2 
+			rjmp Mode_F2 
 			
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1, z+
-			ld b0, z
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
 			WAIT_MS 200
 			rjmp Trefnext
 
 
-ModeD2:		
-			ldi zl, low(Tref)
-			ldi zh, high(Tref)
-			ld b1,z+
-			ld b0,z
+Mode_F2:		
+			ldi xl, low(Tref)
+			ldi xh, high(Tref)
+			ld b1, x+
+			ld b0, x
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
 
 Trefnext:	
-			cpi r16,0b11111110
-			brne PC+6
-			sbic PIND,0
-			rjmp PC-1
-			sbis PIND,0
-			rjmp PC-1						; go to Temp_color if any button pressed
-			rjmp reset
+
+			in r16, PIND
 			cpi r16, 0b10111111
-			brne PC+3						; go to main if PD6 is pressed
+			brne PC+7
+			BOUTON 6						; go to main if PD6 is pressed
 			rcall LCD_clear
 			rjmp main	
-			cpi r16, 0b11111011
-			brne PC+3						; clear LCD and go to Tableset if PD2 is pressed
+			cpi r16, 0b11110111
+			brne PC+7
+			BOUTON 3					; clear LCD and go to Tableset if PD2 is pressed
 			rcall LCD_clear
 			rjmp Tableset
-			cpi r16, 0b11111101				; clear LCD and go to Tableset if PD1 is pressed
-			brne PC+3
+			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
+			brne PC+7
+			BOUTON 2
 			rcall LCD_clear
 			rjmp Tableset		
-			cpi r16,0b11011111
-			_BRNE Trefinc
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
-			ADDI b0, 0b00010000
-			st x,b0
-			rjmp Trefset
+
 			rjmp Trefinc					; if any button is pressed, return to Trefinc
 
 Tableset:
@@ -224,20 +242,21 @@ Tableset:
 			PRINTF LCD
 .db "Set Table", LF, 0
 
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
 			ld b0,x
 
 			sbrc b0,4 
-			rjmp ModeD6
+			rjmp Mode_F3
 			
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
 			WAIT_MS 200
 			rjmp Tableinc
 
-ModeD6:	
+Mode_F3:	
 			MODE b2,b3
+			
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
@@ -247,18 +266,18 @@ ModeD6:
 Tableinc:	
 
 			in r16, PIND
-			cpi r16, 0b11111011				; increment Table, Tsup and Tinf if PD2 is pressed
+			cpi r16, 0b11110111				; increment Table, Tsup and Tinf if PD2 is pressed
 			_BRNE Tabledec					; go to Tabledec if not
 			INCT b2,b3,1
 			INCT a0,a1,0
 			DECT a2,a3,0
 
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
 			ld b0,x
 
 			sbrc b0,4
-			rjmp ModeD7
+			rjmp Mode_F4
 
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
@@ -266,74 +285,61 @@ Tableinc:
 			rjmp Tabledec
 
 
-ModeD7:		
+Mode_F4:		
 
 			MODE b2,b3
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
 			WAIT_MS 200
 		
-Tabledec:
-			cpi r16, 0b11111101				; decrement Tref, Tsup and Tinf if PD1 is pressed
+Tabledec:	
+			in r16, PIND
+			cpi r16, 0b11111011				; decrement Tref, Tsup and Tinf if PD1 is pressed
 			_BRNE Tablenext					; go to Tablenext if not
 			DECT b2,b3,1
 			DECT a0,a1,0
 			INCT a2,a3,0
 
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ld b0, x
 
 			sbrc b0,4
-			rjmp ModeD8
+			rjmp Mode_F5
 
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b+2, 4, $42,"C", LF, 0
 			WAIT_MS 200
 			rjmp Tablenext
-ModeD8:	
+Mode_F5:	
 			MODE b2,b3
 			PRINTF LCD
 .db "Table =",FFRAC2+FSIGN, b, 4, $42,"F", LF, 0
 			WAIT_MS 200
 
 Tablenext:
-			cpi r16,0b11111110
-			brne PC+6
-			sbic PIND,0
-			rjmp PC-1
-			sbis PIND,0
-			rjmp PC-1						; go to Temp_color if any button pressed
-			rjmp reset
+			
+			in r16, PIND
 			cpi r16, 0b10111111
-			brne PC+3						; clear LCD and go to main if PD6 is pressed
+			brne PC+7
+			BOUTON 6						; clear LCD and go to main if PD6 is pressed
 			rcall LCD_clear
-			breq main
-			cpi r16, 0b11101111
-			brne PC+3						; clear LCD and return to Trefset if PD4 is pressed
+			rjmp main
+			cpi r16, 0b11011111
+			brne PC+7
+			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
 			rcall LCD_clear
 			rjmp Trefset
-			cpi r16, 0b11110111
-			brne PC+3						; clear LCD and return to Trefset if PD3 is pressed
+			cpi r16, 0b11101111
+			brne PC+7
+			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
-			rjmp Trefset		
-			cpi r16,0b11011111
-			_BRNE Tableinc
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
-			ADDI b0, 0b00010000
-			st x,b0
-			rjmp Tableset
-			rjmp Tableinc					; if any button is pressed, return to Tableinc
+			rjmp Trefset
+			rjmp Tableinc					; if any button is pressed, return to Tableinc		
 
 
 main:	
-								
+			sei					
 			push a0
 			rcall	lcd_home				; place cursor to home position
 			rcall	wire1_reset				; send a reset pulse
@@ -348,50 +354,44 @@ main:
 			mov c3,a0
 			pop a0  
 
-			in r16,PIND
-			cpi r16,0b11111110
-			brne PC+6
-			sbic PIND,0
-			rjmp PC-1
-			sbis PIND,0
-			rjmp PC-1						; go to Temp_color if any button pressed
-			rjmp reset
-			cpi r16, 0b11101111
-			brne PC+3						; clear LCD and return to Trefset if PD4 is pressed
+			in r16, PIND
+			cpi r16, 0b01111111
+			brne PC+7
+			BOUTON 6						; clear LCD and return to Trefset if PD4 is pressed
+			rcall LCD_clear
+			rjmp main
+			cpi r16, 0b10111111
+			brne PC+7
+			BOUTON 6						; clear LCD and return to Trefset if PD4 is pressed
+			rcall LCD_clear
+			rjmp main
+			cpi r16, 0b11011111
+			brne PC+7
+			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
 			rcall LCD_clear
 			rjmp Trefset
-			cpi r16, 0b11110111
-			brne PC+3						; clear LCD and return to Trefset if PD3 is pressed
+			cpi r16, 0b11101111
+			brne PC+7
+			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
 			rjmp Trefset
-			cpi r16, 0b11111011
-			brne PC+3						; clear LCD and go to Tableset if PD2 is pressed
+			cpi r16, 0b11110111
+			brne PC+7
+			BOUTON 3						; clear LCD and go to Tableset if PD2 is pressed
 			rcall LCD_clear
 			rjmp Tableset
-			cpi r16, 0b11111101				; clear LCD and go to Tableset if PD1 is pressed
-			brne PC+3
+			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
+			brne PC+7
+			BOUTON 2
 			rcall LCD_clear
 			rjmp Tableset
-			cpi r16,0b11011111
-			brne nope
-			sbic PIND,5
-			rjmp PC-1
-			sbis PIND,5
-			rjmp PC-1
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ld b0,x
-			ADDI b0, 0b00010000
-			st x,b0
-
-nope:		
-			rcall LCD_clear
-			ldi xl, low(Sauvegarde)
-			ldi xh, high(Sauvegarde)
-			ldi b1, 0b00000000
+					
+			call LCD_clear
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
 			ld b0,x
 			sbrc b0,4
-			rjmp ModeD5
+			rjmp Mode_F6
 			
 			PRINTF LCD
 .db			"Temp =",FFRAC2+FSIGN, c+2, 4, $42, "C",LF, 0
@@ -400,7 +400,7 @@ nope:
 			
 			rjmp Temp_color
 
-ModeD5:
+Mode_F6:
 		
 			Mode c2,c3
 			PRINTF LCD
@@ -583,5 +583,5 @@ ws2b3_nexta2:
 .dseg
 .org 0x0101
 
-sauvegarde: .byte 2
+Selection: .byte 2
 Tref: .byte 2
