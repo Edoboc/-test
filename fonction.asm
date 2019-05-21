@@ -23,7 +23,18 @@
  .equ compteur = 0b01000000
 
 ; === macros declarations
-.macro 	INCT ; incrémente @0,@1 tant que < 70 (format 2 bytes signé, point fixe à 4)
+
+.macro BOUTON
+
+	in r16, PIND
+	sbrs PIND, @0
+	PC-1
+	sbrc PIND, @0
+	PC-1
+	.endmacro
+	
+	
+.macro 	INCT ; incrÃ©mente @0,@1 tant que < 70 (format 2 bytes signÃ©, point fixe Ã  4)
 		PUSH2 c0, c1
 		_LDI c1,@2
 		ldi w,tmax0
@@ -43,7 +54,7 @@
 	.endmacro
 
 
-.macro 	DECT ; décrémente @0,@1 tant que > -30 (format 2 bytes signé, point fixe à 4)
+.macro 	DECT ; dÃ©crÃ©mente @0,@1 tant que > -30 (format 2 bytes signÃ©, point fixe Ã  4)
 		PUSH2 c0, c1
 		_LDI c1, @2
 		ldi w,tmin0
@@ -81,7 +92,7 @@
 .endmacro
 
 .macro	LED_COLOR				; Affiche la couleur qu'on envoie comme argument 							
-		PUSH4 a0,a1,a2,b3		; à l'appelle de la macro (format RGB)
+		PUSH4 a0,a1,a2,b3		; Ã  l'appelle de la macro (format RGB)
 		clr	d3					; in: a0, a1, a2, b3, d3
 		ldi b3, compteur
 		cp d3, b3
