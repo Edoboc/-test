@@ -223,17 +223,17 @@ Trefnext:
 			in r16, PIND
 			cpi r16, 0b10111111
 			brne PC+7
-			Bouton 6						; go to main if PD6 is pressed
+			BOUTON 6						; go to main if PD6 is pressed
 			rcall LCD_clear
 			rjmp main	
 			cpi r16, 0b11110111
 			brne PC+7
-			Bouton 3					; clear LCD and go to Tableset if PD2 is pressed
+			BOUTON 3					; clear LCD and go to Tableset if PD2 is pressed
 			rcall LCD_clear
 			rjmp Tableset
 			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
 			brne PC+7
-			Bouton 2
+			BOUTON 2
 			rcall LCD_clear
 			rjmp Tableset		
 
@@ -325,17 +325,17 @@ Tablenext:
 			in r16, PIND
 			cpi r16, 0b10111111
 			brne PC+7
-			Bouton 6						; clear LCD and go to main if PD6 is pressed
+			BOUTON 6						; clear LCD and go to main if PD6 is pressed
 			rcall LCD_clear
 			rjmp main
 			cpi r16, 0b11011111
 			brne PC+7
-			Bouton 5						; clear LCD and return to Trefset if PD4 is pressed
+			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
 			rcall LCD_clear
 			rjmp Trefset
 			cpi r16, 0b11101111
 			brne PC+7
-			Bouton 4					; clear LCD and return to Trefset if PD3 is pressed
+			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
 			rjmp Trefset
 			rjmp Tableinc					; if any button is pressed, return to Tableinc		
@@ -360,27 +360,27 @@ main:
 			in r16, PIND
 			cpi r16, 0b10111111
 			brne PC+7
-			Bouton 6						; clear LCD and return to Trefset if PD4 is pressed
+			BOUTON 6						; clear LCD and return to Trefset if PD4 is pressed
 			rcall LCD_clear
 			rjmp main
 			cpi r16, 0b11011111
 			brne PC+7
-			Bouton 5						; clear LCD and return to Trefset if PD4 is pressed
+			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
 			rcall LCD_clear
 			rjmp Trefset
 			cpi r16, 0b11101111
 			brne PC+7
-			Bouton 4					; clear LCD and return to Trefset if PD3 is pressed
+			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
 			rcall LCD_clear	
 			rjmp Trefset
 			cpi r16, 0b11110111
 			brne PC+7
-			Bouton 3						; clear LCD and go to Tableset if PD2 is pressed
+			BOUTON 3						; clear LCD and go to Tableset if PD2 is pressed
 			rcall LCD_clear
 			rjmp Tableset
 			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
 			brne PC+7
-			Bouton 2
+			BOUTON 2
 			rcall LCD_clear
 			rjmp Tableset
 					
