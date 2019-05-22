@@ -36,16 +36,20 @@ ext_int0:
 
 ext_int1:
 			
-			sbic PIND,1
+			sbic PIND,1					;boucle pour éviter les rebonds
 			rjmp PC-1
 			sbis PIND,1
 			rjmp PC-1
-			ldi xl, low(Selection)
+			in _sreg, SREG
+
+			ldi xl, low(Selection)		;incrementation registre, alternance 0/1 du bit4
 			ldi xh, high(Selection)
-			ld b0, x
-			ADDI b0, 0b00010000
-			st x, b0
-			rjmp Trefset
+			ld d2, x
+			_ADDI d2, 0b00010000
+			st x, d2
+
+			rcall retour
+			out SREG,_sreg
 			reti
 
 .include "lcd.asm"
@@ -62,8 +66,8 @@ init:
 
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ldi b0, 0b00000000 ; initialisation compteur
-			st x, b0
+			_LDI d2, 0b00000000 ; initialisation compteur
+			st x, d2
 
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
@@ -72,32 +76,64 @@ init:
 			st x+, b1
 			st x, b0
 
-			ldi a0,0b00110000	; Tsup LSByte
-			ldi a1,0b00000010	; Tsup MSByte, initialisation à 35°C
-			ldi a2,0b11110000	; Tinf LSByte
-			ldi a3,0b00000000	; Tinf MSByte, initialisation à 15°C
-			ldi b2,0b01000000	; Plage LSByte
-			ldi b3,0b00000001	; Plage MSByte, initialisation à 20°C
+			ldi xl, low(Tsup)
+			ldi xh, high(Tsup)
+			ldi b0,0b00110000	; Tsup LSByte
+			ldi b1,0b00000010	; Tsup MSByte, initialisation à 35°C
+			st x+, b1
+			st x, b0
 
+			ldi xl, low(Tinf)
+			ldi xh, high(Tinf)
+			ldi b0,0b11110000	; Tinf LSByte
+			ldi b1,0b00000000	; Tinf MSByte, initialisation à 15°C
+			st x+, b1
+			st x, b0
 
-Trefset:	
-			sei
+			ldi xl, low(Plage)
+			ldi xh, high(Plage)
+			ldi b0,0b01000000	; Plage LSByte
+			ldi b1,0b00000001	; Plage MSByte, initialisation à 20°C
+			st x+, b1
+			st x, b0
+
+			rjmp Trefset
+
+retour:		
 			rcall LCD_clear
-			WAIT_MS 200
-			PRINTF LCD
-.db "Set Tref", LF, 0
-			
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0, x
+			ld d2,x
+			sbrc d2,4
 
-			sbrc b0,4 
+			rjmp Mode_Selection
+			
+			PRINTF LCD
+.db			"Mode Celsius",LF, 0		;affichage temporaire lors de la sélection du mode Celsius via interruption
+			WAIT_MS	2000
+			ret
+
+Mode_Selection:
+
+			PRINTF LCD
+.db "Mode Farenheit",LF, 0				;affichage temporaire lors de la sélection du mode Celsius via interruption
+			WAIT_MS 2000
+			ret
+
+Trefset:	
+			rcall LCD_clear
+			WAIT_US 50
+			PRINTF LCD
+.db "Set Tref", LF, 0
+
+			ldi xl, low(Selection)
+			ldi xh, high(Selection)
+			ld d2, x
+
+			sbrc d2,4					;affichage en °C ou en °F selon le choix du mode
 			rjmp Mode_F0
-
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
+					
+			LOAD Tref
 
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
@@ -105,7 +141,7 @@ Trefset:
 
 			rjmp Trefinc
 
-Mode_F0:
+Mode_F0:								; Mode_FX (selection mode Farenheit)
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ld b1, x+
@@ -118,294 +154,306 @@ Mode_F0:
 Trefinc:	
 			
 			in r16, PIND
-			cpi r16, 0b11011111				; increment Tref, Tsup and Tinf if PD4 is pressed
+			cpi r16, 0b11011111				; increment Tref, Tsup and Tinf if PD5 is pressed
 			_BRNE Trefdec					; go to Trefdec if not
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
-			INCT b0,b1,1
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			st x+,b1
-			st x, b0
-			INCT a0,a1,1
-			INCT a2,a3,1
 			
+			LOAD Tref
+			INCT b0,b1,1
+			STORE Tref
+		
+			LOAD Tsup
+			INCT b0,b1,1
+			STORE Tsup
+			
+			LOAD Tinf
+			INCT b0,b1,1
+			STORE Tinf
+
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0, x
+			ld d2, x
 
-			sbrc b0, 4
+			LOAD Tref
+			sbrc d2,4
 			rjmp Mode_F1
 
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
-
-			
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 			rjmp Trefdec
 
-
-Mode_F1:		
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
-			MODE b0,b1
+Mode_F1:									; Mode_FX (selection mode Farenheit)
+			MODE b0,b1						
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 			
 
 Trefdec:	
 			in r16, PIND
-			cpi r16, 0b11101111				; decrement Tref, Tsup and Tinf if PD3 is pressed
+			cpi r16, 0b11101111				; decrement Tref, Tsup and Tinf if PD4 is pressed
 			_BRNE Trefnext					; go to Trefnext if not
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
+
+			LOAD Tref
 			DECT b0,b1,1
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			st x+,b1
-			st x, b0
-			DECT a0,a1,1
-			DECT a2,a3,1
+			STORE Tref
+
+			LOAD Tsup
+			DECT b0,b1,1
+			STORE Tsup
+
+			LOAD Tinf
+			DECT b0,b1,1
+			STORE Tinf
 
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0,x
+			ld d2,x
 
-			sbrc b0,4
-			rjmp Mode_F2 
+			LOAD Tref
+			sbrc d2,4
+			rjmp Mode_F2
 			
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 			rjmp Trefnext
 
-
 Mode_F2:		
-			ldi xl, low(Tref)
-			ldi xh, high(Tref)
-			ld b1, x+
-			ld b0, x
+			
 			MODE b0,b1
 			PRINTF LCD
 .db "Tref =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 
 Trefnext:	
 
 			in r16, PIND
-			cpi r16, 0b10111111
-			brne PC+7
-			BOUTON 6						; go to main if PD6 is pressed
+			cpi r16, 0b10111111				; clear LCD and go to main if PD6 is pressed
+			brne skip1
+			BOUTON 6					
 			rcall LCD_clear
-			rjmp main	
-			cpi r16, 0b11110111
-			brne PC+7
-			BOUTON 3					; clear LCD and go to Tableset if PD2 is pressed
+			rjmp main					
+skip1:		cpi r16, 0b11110111				; clear LCD and go to Plageset if PD3 is pressed
+			brne skip2
+			BOUTON 3					
 			rcall LCD_clear
-			rjmp Tableset
-			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
-			brne PC+7
+			rjmp Plageset
+skip2:		cpi r16, 0b11111011				; clear LCD and go to Plageset if PD2 is pressed
+			brne skip3
 			BOUTON 2
 			rcall LCD_clear
-			rjmp Tableset		
+			rjmp Plageset		
 
-			rjmp Trefinc					; if any button is pressed, return to Trefinc
+skip3:		rjmp Trefset					; if any button is pressed, return to Trefset
 
-Tableset:
+Plageset:
 			rcall LCD_clear
-			WAIT_MS 200
+			WAIT_US 50
 			PRINTF LCD
 .db "Set Plage", LF, 0
 
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0,x
+			ld d2,x
 
-			sbrc b0,4 
+			LOAD Plage
+			sbrc d2,4
 			rjmp Mode_F3
 			
 			PRINTF LCD
-.db "Plage =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
-			WAIT_MS 200
-			rjmp Tableinc
+.db "Plage =",FFRAC2+FSIGN, b, 4, $42, "C", LF, 0
+			WAIT_MS 50
+			rjmp Plageinc
 
-Mode_F3:	
-			MODE b2,b3
-			
+Mode_F3:									; Mode_FX (selection mode Farenheit)
+			MODE b0,b1
 			PRINTF LCD
 .db "Plage =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 			
 
 
-Tableinc:	
+Plageinc:	
 
 			in r16, PIND
-			cpi r16, 0b11110111				; increment Table, Tsup and Tinf if PD2 is pressed
-			_BRNE Tabledec					; go to Tabledec if not
-			INCT b2,b3,1
-			INCT a0,a1,0
-			DECT a2,a3,0
+			cpi r16, 0b11110111				; increment Plage, Tsup and Tinf if PD4 is pressed
+			_BRNE Plagedec					; go to Plagedec if not
+			
+			LOAD Plage
+			INCT b0,b1,1
+			STORE Plage
+
+			LOAD Tsup
+			INCT b0,b1,0
+			STORE Tsup
+
+			LOAD Tinf
+			DECT b0,b1,0
+			STORE Tinf
+			
 
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0,x
+			ld d2,x
 
-			sbrc b0,4
+			LOAD Plage
+			sbrc d2,4
 			rjmp Mode_F4
 
 			PRINTF LCD
-.db "Plage =",FFRAC2+FSIGN, b+2, 4, $42, "C", LF, 0
-			WAIT_MS 200
-			rjmp Tabledec
-
-
-Mode_F4:		
-
-			MODE b2,b3
+.db "Plage =",FFRAC2+FSIGN, b, 4, $42,"C", LF, 0
+			WAIT_MS 50
+			rjmp Plagenext
+Mode_F4:									; Mode_FX (selection mode Farenheit)
+			MODE b0,b1
 			PRINTF LCD
-.db "Plage =",FFRAC2+FSIGN, b, 4, $42, "F", LF, 0
-			WAIT_MS 200
+.db "Plage =",FFRAC2+FSIGN, b, 4, $42,"F", LF, 0
+			WAIT_MS 50
 		
-Tabledec:	
+Plagedec:	
 			in r16, PIND
 			cpi r16, 0b11111011				; decrement Tref, Tsup and Tinf if PD1 is pressed
-			_BRNE Tablenext					; go to Tablenext if not
-			DECT b2,b3,1
-			DECT a0,a1,0
-			INCT a2,a3,0
+			_BRNE Plagenext					; go to Plagenext if not
+			
+			LOAD Plage
+			DECT b0,b1,1
+			STORE Plage
+
+			LOAD Tsup
+			DECT b0,b1,0
+			STORE Tsup
+
+			LOAD Tinf
+			INCT b0,b1,0
+			STORE Tinf
 
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0, x
+			ld d2, x
 
-			sbrc b0,4
+			LOAD Plage
+			sbrc d2,4
 			rjmp Mode_F5
 
 			PRINTF LCD
-.db "Plage =",FFRAC2+FSIGN, b+2, 4, $42,"C", LF, 0
-			WAIT_MS 200
-			rjmp Tablenext
-Mode_F5:	
-			MODE b2,b3
+.db "Plage =",FFRAC2+FSIGN, b, 4, $42,"C", LF, 0
+			WAIT_MS 50
+			rjmp Plagenext
+
+Mode_F5:									; Mode_FX (selection mode Farenheit)
+			MODE b0,b1
 			PRINTF LCD
 .db "Plage =",FFRAC2+FSIGN, b, 4, $42,"F", LF, 0
-			WAIT_MS 200
+			WAIT_MS 50
 
-Tablenext:
+Plagenext:
 			
 			in r16, PIND
-			cpi r16, 0b10111111
-			brne PC+7
-			BOUTON 6						; clear LCD and go to main if PD6 is pressed
-			rcall LCD_clear
+			cpi r16, 0b10111111				; clear LCD and go to main if PD6 is pressed
+			brne skip4
+			BOUTON 6						
+			call LCD_clear
 			rjmp main
-			cpi r16, 0b11011111
-			brne PC+7
-			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
-			rcall LCD_clear
+skip4:		cpi r16, 0b11011111				; clear LCD and return to Trefset if PD5 is pressed
+			brne skip5
+			BOUTON 5						
+			call LCD_clear
 			rjmp Trefset
-			cpi r16, 0b11101111
-			brne PC+7
-			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
-			rcall LCD_clear	
+skip5:		cpi r16, 0b11101111				; clear LCD and return to Trefset if PD4 is pressed
+			brne skip6
+			BOUTON 4						
+			call LCD_clear	
 			rjmp Trefset
-			rjmp Tableinc					; if any button is pressed, return to Tableinc		
+
+skip6:		rjmp Plageset					; if any button is pressed, return to Plageset		
 
 
-main:					
-			push a0
-			rcall	lcd_home				; place cursor to home position
-			rcall	wire1_reset				; send a reset pulse
+main:		
+			call LCD_clear
+			WAIT_US 100
+			sei
+
+			clr a0
+			call	lcd_home				; place cursor to home position
+			call	wire1_reset				; send a reset pulse
 			CA	wire1_write, skipROM		; skip ROM identification
 			CA	wire1_write, convertT		; initiate temp conversion
-			rcall	wire1_reset				; send a reset pulse
+			call	wire1_reset				; send a reset pulse
 			CA	wire1_write, skipROM
 			CA	wire1_write, readScratchpad
-			rcall	wire1_read				; read temperature LSByte
+			call	wire1_read				; read temperature LSByte
 			mov	c2,a0
-			rcall	wire1_read				; read temperature MSByte
+			call	wire1_read				; read temperature MSByte
 			mov c3,a0
-			pop a0  
 
 			in r16, PIND
-			cpi r16, 0b01111111
-			brne PC+7
-			BOUTON 6						; clear LCD and return to Trefset if PD4 is pressed
-			rcall LCD_clear
-			rjmp main
-			cpi r16, 0b10111111
-			brne PC+7
-			BOUTON 6						; clear LCD and return to Trefset if PD4 is pressed
-			rcall LCD_clear
-			rjmp main
-			cpi r16, 0b11011111
-			brne PC+7
-			BOUTON 5						; clear LCD and return to Trefset if PD4 is pressed
-			rcall LCD_clear
-			rjmp Trefset
-			cpi r16, 0b11101111
-			brne PC+7
-			BOUTON 4					; clear LCD and return to Trefset if PD3 is pressed
-			rcall LCD_clear	
-			rjmp Trefset
-			cpi r16, 0b11110111
-			brne PC+7
-			BOUTON 3						; clear LCD and go to Tableset if PD2 is pressed
-			rcall LCD_clear
-			rjmp Tableset
-			cpi r16, 0b11111011				; clear LCD and go to Tableset if PD1 is pressed
-			brne PC+7
-			BOUTON 2
-			rcall LCD_clear
-			rjmp Tableset
-					
+			cpi r16, 0b10111111				; clear LCD and return to Trefset if PD6 is pressed
+			brne skip7
+			BOUTON 6						
 			call LCD_clear
+			rjmp main
+skip7:		cpi r16, 0b11011111				; clear LCD and return to Trefset if PD5 is pressed
+			brne skip8
+			BOUTON 5						
+			call LCD_clear
+			rjmp Trefset
+skip8:		cpi r16, 0b11101111				; clear LCD and return to Trefset if PD4 is pressed
+			brne skip9
+			BOUTON 4						
+			call LCD_clear	
+			rjmp Trefset
+skip9:		cpi r16, 0b11110111				; clear LCD and return to Trefset if PD3 is pressed
+			brne skip10
+			BOUTON 3						
+			call LCD_clear
+			rjmp Plageset
+skip10:		cpi r16, 0b11111011				; clear LCD and go to Plageset if PD2 is pressed
+			brne skip11
+			BOUTON 2
+			call LCD_clear
+			rjmp Plageset
+						
+skip11:			
 			ldi xl, low(Selection)
 			ldi xh, high(Selection)
-			ld b0,x
-			sbrc b0,4
+			ld d2,x
+			sbrc d2,4
 			rjmp Mode_F6
 			
 			PRINTF LCD
 .db			"Temp =",FFRAC2+FSIGN, c+2, 4, $42, "C",LF, 0
-			
 			WAIT_MS 50
-			
 			rjmp Temp_color
 
-Mode_F6:
+Mode_F6:										; Mode_FX (selection mode Farenheit)
 		
 			Mode c2,c3
 			PRINTF LCD
-.db "Temp =",FFRAC2+FSIGN, b, 4, $42, "F",LF, 0
+.db "Temp =",FFRAC2, b, 4, $42, "F",LF, 0
 			WAIT_MS 50
 
 
 
-Temp_color:	
-		PUSH4 a0,a1,a2,a3					; save registers
-		PUSH4 b0,b1,c0,c1
+Temp_color:									; fonction affichage matrice
+
+		ldi xl, low(Tsup)
+		ldi xh, high(Tsup)
+		ld a1, x+
+		ld a0, x
+		ldi xl, low(Tinf)
+		ldi xh, high(Tinf)
+		ld a3, x+
+		ld a2, x
+		
+		PUSH4 b0,b1,c0,c1					; save registers
 		LDI2 b1,b0, 0x0170					; load 23 in b1 b0
 		SUB2 a1,a0, a3,a2					; substract Tinf to Tsup, result stored in a1 a0
 		rcall div22							; divide previous result by 23, result stored in c1 c0 (format 2 signed bytes, fix point at 4)
 		MOV2 b1,b0, c1,c0					; move result to b1 b0
+		PUSH4 c3,c2,c0,c1
 		SUB2 c3,c2, a3,a2					; Tempeture - Tinf
+		brmi Alert_blue 		
 		MOV2 a1,a0, c3,c2					; move result to a1 a0
 		rcall div22							; previous result/first division result
 		mov d0,c0							; move result to d0 and change format
@@ -413,11 +461,10 @@ Temp_color:
 		or d0,c1
 		swap d0								
 		POP4 b0,b1,c0,c1					; restore rgisters
-		POP4 a0,a1,a2,a3
-
+		rjmp Pure_blue
+cli
+		
 Alert_blue:
-		_SUBI d0, 0
-		brpl Pure_blue
 		LED_COLOR 0x00,0x00,0x0f
 		WAIT_MS 300
 		LED_COLOR 0x00,0x00,0x00
@@ -594,9 +641,13 @@ ws2b3_nexta2:
 		brne ws2b3_starta2
 	
 		ret
+sei
 
 .dseg
-.org 0x0101
+.org 0x0100
 
 Selection: .byte 2
 Tref: .byte 2
+Plage: .byte 2
+Tsup: .byte 2
+Tinf: .byte 2

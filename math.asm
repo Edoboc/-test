@@ -23,7 +23,7 @@ _m11:	brcc	PC+2			; skip addition if carry=0
 mul21:	CLR2	c2,c1			; clear upper half of result c
 	mov	c0,b0			; place b in lower half of c
 	lsr	c0			; shift LSB (of b) into carry
-	ldi	w,8			; load bit counter
+	ldi	w,12			; load bit counter
 _m21:	brcc	PC+3			; skip addition if carry=0
 	ADD2	c2,c1, a1,a0		; add a to upper half of c
 	ROR3	c2,c1,c0		; shift-right c, LSB (of b) into carry
@@ -150,9 +150,9 @@ div11:	mov	c0,a0			; c will contain the result
 	clr	d1			; d will contain the remainder
 	ldi	w,12		; load bit counter
 _d11:	ROL2	d1,c0			; shift carry into result c
-	sub	d1,b0			; subtract b from remainder
+	sub	d1,a1			; subtract b from remainder
 	brcc	PC+2	
-	add	d1,b0			; restore if remainder became negative
+	add	d1,a1			; restore if remainder became negative
 	DJNZ	w,_d11			; Decrement and Jump if bit-count Not Zero
 	rol	c0			; last shift (C into result c)
 	com	c0			; complement result
@@ -172,7 +172,7 @@ _d21:	ROL3	d1,c1,c0		; shift carry into result c
 
 div22:	MOV2	c1,c0, a1,a0		; c will contain the result
 	CLR2	d1,d0			; d will contain the remainder
-	ldi	w,20			; load bit counter
+	ldi	w,24			; load bit counter
 _d22:	ROL4	d1,d0,c1,c0		; shift carry into result c
 	SUB2	d1,d0, b1,b0		; subtract b from remainder
 	brcc	PC+3	
