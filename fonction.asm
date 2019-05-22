@@ -2,14 +2,9 @@
  * fonction.asm
  *
  *  Created: 5/15/2019 8:14:54 PM
- *   Author: shobayashi
+ *   Author: Loic, Edoardo
  */ 
- /*
- * def+.asm
- *
- *  Created: 29.05.2018 16:55:35
- *   Author: Loic
- */
+ 
  .include "definitions.asm"
  .include "macros.asm"
 
@@ -41,7 +36,7 @@
 .endmacro
 
 
-.macro 	INCT ; incrémente @0,@1 tant que < 70 (format 2 bytes signé, point fixe à 4)
+.macro 	INCT ; incrÃ©mente @0,@1 tant que < 70 (format 2 bytes signÃ©, point fixe Ã  4)
 		PUSH4 c0, c1, c2, c3
 		 
 		_LDI c0,tmax0
@@ -82,7 +77,7 @@ nope:
 	.endmacro
 
 
-.macro 	DECT ; décrémente @0,@1 tant que > -30 (format 2 bytes signé, point fixe à 4)
+.macro 	DECT ; dÃ©crÃ©mente @0,@1 tant que > -30 (format 2 bytes signÃ©, point fixe Ã  4)
 		PUSH4 c0, c1, c2, c3
 		ldi w,@2
 
