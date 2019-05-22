@@ -2,7 +2,7 @@
  * Capteurthermo.asm
  *
  *  Created: 15.05.2018 15:37:41
- *   Author: Loïc
+ *   Author: LoÃ¯c & Edoardo
  */
 
  .include "fonction.asm"
@@ -36,7 +36,7 @@ ext_int0:
 
 ext_int1:
 			
-			sbic PIND,1					;boucle pour éviter les rebonds
+			sbic PIND,1					;boucle pour Ã©viter les rebonds
 			rjmp PC-1
 			sbis PIND,1
 			rjmp PC-1
@@ -72,28 +72,28 @@ init:
 			ldi xl, low(Tref)
 			ldi xh, high(Tref)
 			ldi b0, 0b10010000 ; Tref LSByte
-			ldi b1, 0b00000001 ; Tref MSByte, initialisation à 25°C
+			ldi b1, 0b00000001 ; Tref MSByte, initialisation Ã  25Â°C
 			st x+, b1
 			st x, b0
 
 			ldi xl, low(Tsup)
 			ldi xh, high(Tsup)
 			ldi b0,0b00110000	; Tsup LSByte
-			ldi b1,0b00000010	; Tsup MSByte, initialisation à 35°C
+			ldi b1,0b00000010	; Tsup MSByte, initialisation Ã  35Â°C
 			st x+, b1
 			st x, b0
 
 			ldi xl, low(Tinf)
 			ldi xh, high(Tinf)
 			ldi b0,0b11110000	; Tinf LSByte
-			ldi b1,0b00000000	; Tinf MSByte, initialisation à 15°C
+			ldi b1,0b00000000	; Tinf MSByte, initialisation Ã  15Â°C
 			st x+, b1
 			st x, b0
 
 			ldi xl, low(Plage)
 			ldi xh, high(Plage)
 			ldi b0,0b01000000	; Plage LSByte
-			ldi b1,0b00000001	; Plage MSByte, initialisation à 20°C
+			ldi b1,0b00000001	; Plage MSByte, initialisation Ã  20Â°C
 			st x+, b1
 			st x, b0
 
@@ -109,14 +109,14 @@ retour:
 			rjmp Mode_Selection
 			
 			PRINTF LCD
-.db			"Mode Celsius",LF, 0		;affichage temporaire lors de la sélection du mode Celsius via interruption
+.db			"Mode Celsius",LF, 0		;affichage temporaire lors de la sÃ©lection du mode Celsius via interruption
 			WAIT_MS	2000
 			ret
 
 Mode_Selection:
 
 			PRINTF LCD
-.db "Mode Farenheit",LF, 0				;affichage temporaire lors de la sélection du mode Celsius via interruption
+.db "Mode Farenheit",LF, 0				;affichage temporaire lors de la sÃ©lection du mode Celsius via interruption
 			WAIT_MS 2000
 			ret
 
@@ -130,7 +130,7 @@ Trefset:
 			ldi xh, high(Selection)
 			ld d2, x
 
-			sbrc d2,4					;affichage en °C ou en °F selon le choix du mode
+			sbrc d2,4					;affichage en Â°C ou en Â°F selon le choix du mode
 			rjmp Mode_F0
 					
 			LOAD Tref
